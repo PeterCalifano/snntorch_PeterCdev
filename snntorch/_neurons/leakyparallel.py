@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+
 class LeakyParallel(nn.Module):
     """
     A parallel implementation of the Leaky neuron with a fused input linear layer.
@@ -29,19 +30,13 @@ class LeakyParallel(nn.Module):
     * Linear weights are included in addition to 
         recurrent weights.
     * `beta` is clipped between [0,1] and cloned to 
-        `weight_hh_l` only upon layer initialization. 
-        It is unused otherwise.
+        `weight_hh_l` only upon layer initialization. It is unused otherwise.
     * There is no explicit reset mechanism.
     * Several functions such as `init_hidden`, `output`, 
-        `inhibition`, and `state_quant` are unavailable 
-        in `LeakyParallel`.
-    * Only the output spike is returned. Membrane potential
-        is not accessible by default.
-    * RNN uses a hidden matrix of size (num_hidden, num_hidden)
-        to transform the hidden state vector. This would 'leak' 
-        the membrane potential between LIF neurons, and so the 
-        hidden matrix is forced to a diagonal matrix by default. 
-        This can be disabled by setting `weight_hh_enable=True`.
+        `inhibition`, and `state_quant` are unavailable in `LeakyParallel`.
+    * Only the output spike is returned. Membrane potential is not accessible by default.
+    * RNN uses a hidden matrix of size (num_hidden, num_hidden) 
+    to transform the hidden state vector. This would 'leak' the membrane potential between LIF neurons, and so the hidden matrix is forced to a diagonal matrix by default.  This can be disabled by setting `weight_hh_enable=True`.
 
     Example::
 
@@ -77,10 +72,8 @@ class LeakyParallel(nn.Module):
     :param hidden_size: The number of features in the hidden state `h`
     :type hidden_size: int
 
-    :param beta: membrane potential decay rate. Clipped between 0 and 1
-        during the forward-pass. May be a single-valued tensor (i.e., equal
-        decay rate for all neurons in a layer), or multi-valued (one weight per
-        neuron). If left unspecified, then the decay rates will be randomly initialized based on PyTorch's initialization for RNN. Defaults to None
+    :param beta: membrane potential decay rate. Clipped between 0 and 1 
+    during the forward-pass. May be a single-valued tensor (i.e., equal decay rate for all neurons in a layer), or multi-valued (one weight per neuron). If left unspecified, then the decay rates will be randomly initialized based on PyTorch's initialization for RNN. Defaults to None
     :type beta: float or torch.tensor, optional
 
     :param bias: If `False`, then the layer does not use bias weights `b_ih` and `b_hh`. Defaults to True
@@ -112,9 +105,7 @@ class LeakyParallel(nn.Module):
     :type learn_threshold: bool, optional
 
     :param weight_hh_enable: Option to set the hidden matrix to be dense or 
-        diagonal. Diagonal (i.e., False) adheres to how a LIF neuron works. 
-        Dense (True) would allow the membrane potential of one LIF neuron to 
-        influence all others, and follow the RNN default implementation. Defaults to False
+    diagonal. Diagonal (i.e., False) adheres to how a LIF neuron works. Dense (True) would allow the membrane potential of one LIF neuron to influence all others, and follow the RNN default implementation. Defaults to False
     :type weight_hh_enable: bool, optional
 
 
@@ -172,10 +163,19 @@ class LeakyParallel(nn.Module):
         dtype=None,
     ):
         super().__init__()
-        
-        self.rnn = nn.RNN(input_size, hidden_size, num_layers=1, nonlinearity='relu', 
-                          bias=bias, batch_first=False, dropout=dropout, device=device, dtype=dtype)
-        
+
+        self.rnn = nn.RNN(
+            input_size,
+            hidden_size,
+            num_layers=1,
+            nonlinearity="relu",
+            bias=bias,
+            batch_first=False,
+            dropout=dropout,
+            device=device,
+            dtype=dtype,
+        )
+
         self._beta_buffer(beta, learn_beta)
         self.hidden_size = hidden_size
 
@@ -194,7 +194,7 @@ class LeakyParallel(nn.Module):
             # Register a gradient hook to clamp out non-diagonal matrices in backward pass
             if learn_beta:
                 self.rnn.weight_hh_l0.register_hook(self.grad_hook)
-        
+
         if not learn_beta:
             # Make the weights non-learnable
             self.rnn.weight_hh_l0.requires_grad_(False)
@@ -211,11 +211,11 @@ class LeakyParallel(nn.Module):
     def forward(self, input_):
         mem = self.rnn(input_)
         # mem[0] contains relu'd outputs, mem[1] contains final hidden state
-        mem_shift = mem[0] - self.threshold # self.rnn.weight_hh_l0
+        mem_shift = mem[0] - self.threshold  # self.rnn.weight_hh_l0
         spk = self.spike_grad(mem_shift)
         spk = spk * self.graded_spikes_factor
         return spk
-    
+
     @staticmethod
     def _surrogate_bypass(input_):
         return (input_ > 0).float()
@@ -270,11 +270,11 @@ class LeakyParallel(nn.Module):
                 * grad_input
             )
             return grad, None
-        
+
     def weight_hh_enable(self):
         mask = torch.eye(self.hidden_size, self.hidden_size)
         self.rnn.weight_hh_l0.data = self.rnn.weight_hh_l0.data * mask
-    
+
     def grad_hook(self, grad):
         device = grad.device
         # Create a mask that is 1 on the diagonal and 0 elsewhere
@@ -288,7 +288,9 @@ class LeakyParallel(nn.Module):
                 # Set all weights to the scalar value of self.beta
                 if isinstance(self.beta, float) or isinstance(self.beta, int):
                     self.rnn.weight_hh_l0.fill_(self.beta)
-                elif isinstance(self.beta, torch.Tensor) or isinstance(self.beta, torch.FloatTensor):
+                elif isinstance(self.beta, torch.Tensor) or isinstance(
+                    self.beta, torch.FloatTensor
+                ):
                     if len(self.beta) == 1:
                         self.rnn.weight_hh_l0.fill_(self.beta[0])
                 elif len(self.beta) == self.hidden_size:
@@ -296,8 +298,10 @@ class LeakyParallel(nn.Module):
                     for i in range(self.hidden_size):
                         self.rnn.weight_hh_l0.data[i].fill_(self.beta[i])
                 else:
-                    raise ValueError("Beta must be either a single value or of length 'hidden_size'.")
-                
+                    raise ValueError(
+                        "Beta must be either a single value or of length 'hidden_size'."
+                    )
+
     def _beta_buffer(self, beta, learn_beta):
         if not isinstance(beta, torch.Tensor):
             if beta is not None:
@@ -305,7 +309,7 @@ class LeakyParallel(nn.Module):
         self.register_buffer("beta", beta)
 
     def _graded_spikes_buffer(
-    self, graded_spikes_factor, learn_graded_spikes_factor
+        self, graded_spikes_factor, learn_graded_spikes_factor
     ):
         if not isinstance(graded_spikes_factor, torch.Tensor):
             graded_spikes_factor = torch.as_tensor(graded_spikes_factor)

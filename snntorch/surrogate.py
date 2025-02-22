@@ -213,7 +213,7 @@ def atan(alpha=2.0):
     return inner
 
 
-@staticmethod
+# @staticmethod
 class Heaviside(torch.autograd.Function):
     """Default spiking function for neuron.
 
@@ -641,6 +641,7 @@ class CustomSurrogate(torch.autograd.Function):
                     ).to(device)
 
     """
+
     @staticmethod
     def forward(ctx, input_, custom_surrogate_function):
         out = (input_ > 0).float()

@@ -11,17 +11,25 @@ with open("README.rst", encoding="utf-8") as readme_file:
 #     history = history_file.read()
 
 # fmt: off
-__version__ = '0.9.1'
+__version__ = '0.9.4'
 # fmt: on
 
-requirements = [
-    "torch>=1.1.0",
-    "pandas",
-    "matplotlib",
-    "numpy>=1.17",
-    "nir",
-    "nirtorch",
-]
+install_requires = [
+    "numpy",
+    "pandas"]
+
+extras_require = {
+    "full": ["torch", "matplotlob", "nir", "nirtorch"]
+}
+
+# requirements = [
+#     "torch>=1.1.0",
+#     "pandas",
+#     "matplotlib",
+#     "numpy>=1.17",
+#     "nir",
+#     "nirtorch",
+# ]
 
 
 test_requirements = ["pytest>=6"]
@@ -31,7 +39,7 @@ version = __version__
 setup(
     author="Jason K. Eshraghian",
     author_email="jeshragh@ucsc.edu",
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     classifiers=[
         "Development Status :: 2 - Pre-Alpha",
         "Intended Audience :: Developers",
@@ -42,7 +50,6 @@ setup(
         "Topic :: Scientific/Engineering",
         "Topic :: Scientific/Engineering :: Mathematics",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
@@ -54,7 +61,7 @@ setup(
     #         "snntorch=snntorch.cli:main",
     #     ],
     # },
-    install_requires=requirements,
+    # install_requires=requirements,
     license="MIT License",
     long_description=readme,
     include_package_data=True,
